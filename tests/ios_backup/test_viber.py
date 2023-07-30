@@ -1,5 +1,5 @@
 # Mobile Verification Toolkit (MVT)
-# Copyright (c) 2021-2023 Claudio Guarnieri.
+# Copyright (c) 2021-2023 Claudio Guarnieri, Bjarni R. Einarsson
 # Use of this software is governed by the MVT License 1.1 that can be found at
 #   https://license.mvt.re/1.1/
 
@@ -7,25 +7,25 @@ import logging
 
 from mvt.common.indicators import Indicators
 from mvt.common.module import run_module
-from mvt.ios.modules.mixed.sms import SMS
+from mvt.ios.modules.mixed.viber import Viber
 
 from ..utils import get_ios_backup_folder
 
 
-class TestSMSModule:
-    def test_sms(self):
-        m = SMS(target_path=get_ios_backup_folder())
+class TestViberModule:
+    def test_viber(self):
+        m = Viber(target_path=get_ios_backup_folder())
         run_module(m)
-        assert len(m.results) == 1
+        assert len(m.results) == 2  # Hi there + I'd like to invite...
         assert len(m.timeline) == 2  # SMS received and read events.
         assert len(m.detected) == 0
+        assert "tinyurl.com" in m.results[1]["links"][0]
 
     def test_detection(self, indicator_file):
-        m = SMS(target_path=get_ios_backup_folder())
+        m = Viber(target_path=get_ios_backup_folder())
         ind = Indicators(log=logging.getLogger())
         ind.parse_stix2(indicator_file)
-        # Adds a file that exists in the manifest.
-        ind.ioc_collections[0]["domains"].append("badbadbad.example.org")
+        ind.ioc_collections[0]["domains"].append("kingdom-deals.com")
         m.indicators = ind
         run_module(m)
         assert len(m.detected) == 1
