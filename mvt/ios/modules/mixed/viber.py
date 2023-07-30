@@ -4,6 +4,7 @@
 #   https://license.mvt.re/1.1/
 
 import logging
+import json
 import sqlite3
 from typing import Optional, Union
 
@@ -45,6 +46,7 @@ class Viber(IOSExtraction):
             log=log,
             results=results,
         )
+        self.unique_links = True
 
     def serialize(self, record: dict) -> Union[dict, list]:
         text = record.get("ZTEXT", "").replace("\n", "\\n")
@@ -81,21 +83,8 @@ class Viber(IOSExtraction):
         cur = conn.cursor()
 
         # Query all messages...
-        # FIXME: and join tables which can contain media attachments and links?
-        cur.execute(
-            """
-            SELECT
-                ZVIBERMESSAGE.Z_PK,
-                ZVIBERMESSAGE.ZATTACHMENT,
-                ZVIBERMESSAGE.ZLOCATION,
-                ZVIBERMESSAGE.ZPHONENUMINDEX,
-                ZVIBERMESSAGE.ZDATE,
-                ZVIBERMESSAGE.ZSTATEDATE,
-                ZVIBERMESSAGE.ZSTATE,
-                ZVIBERMESSAGE.ZTEXT
-            FROM ZVIBERMESSAGE
-        """
-        )
+        # FIXME: Are there also attachments which can contain links?
+        cur.execute('SELECT * FROM ZVIBERMESSAGE')
         names = [description[0] for description in cur.description]
 
         for message_row in cur:
@@ -106,10 +95,19 @@ class Viber(IOSExtraction):
             message["isodate"] = convert_mactime_to_iso(message.get("ZDATE"))
             message["ZTEXT"] = message["ZTEXT"] if message["ZTEXT"] else ""
 
+            # Parse/flatten ZCLIENTMETADATA a bit, so we can process it below as well
+            for key, val in json.loads(message.get('ZCLIENTMETADATA', '{}')).items():
+                if isinstance(val, dict):
+                    for key2, val2 in val.items():
+                        message['ZCLIENTMETADATA.%s.%s' % (key, key2)] = val2
+                else:
+                    message['ZCLIENTMETADATA.%s' % key] = val
+
             # Extract links from the Viber message.
             message_links = []
             fields_with_links = [
                 "ZTEXT",
+                "ZCLIENTMETADATA.URLMessage.receivedUrl",
             ]
             for field in fields_with_links:
                 if message.get(field):
@@ -128,11 +126,14 @@ class Viber(IOSExtraction):
 
             # Add all the links found to the record
             if filtered_links or (message.get("ZTEXT") or "").strip() == "":
-                message["links"] = list(set(filtered_links))
+                if self.unique_links:
+                    message["links"] = list(set(filtered_links))
+                else:
+                    message["links"] = list(filtered_links)
             self.results.append(message)
 
         cur.close()
         conn.close()
 
-        self.log.debug("Extracted: %s", self.results)
+        # Dev only: self.log.debug("Extracted: %s", self.results)
         self.log.info("Extracted a total of %d Viber messages", len(self.results))

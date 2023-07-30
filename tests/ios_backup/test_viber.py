@@ -15,11 +15,13 @@ from ..utils import get_ios_backup_folder
 class TestViberModule:
     def test_viber(self):
         m = Viber(target_path=get_ios_backup_folder())
+        m.unique_links = False  # Allow duplicate links in our output
         run_module(m)
         assert len(m.results) == 2  # Hi there + I'd like to invite...
-        assert len(m.timeline) == 2  # SMS received and read events.
+        assert len(m.timeline) == 2
         assert len(m.detected) == 0
         assert "tinyurl.com" in m.results[1]["links"][0]
+        assert len(m.results[1]["links"]) == 2  # Ensure we picked up the ZCLIENTMETADATA links
 
     def test_detection(self, indicator_file):
         m = Viber(target_path=get_ios_backup_folder())
