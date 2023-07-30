@@ -1,7 +1,7 @@
 PWD = $(shell pwd)
 
 check:
-	flake8
+	flake8 --exclude=.env
 	ruff check -q .
 	black --check .
 	pytest -q

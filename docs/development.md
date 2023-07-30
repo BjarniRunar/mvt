@@ -4,8 +4,15 @@ The Mobile Verification Toolkit team welcomes contributions of new forensic modu
 
 ## Testing
 
-MVT uses `pytest` for unit and integration tests. Code style consistency is maintained with `flake8`, `ruff` and `black`. All can
-be run automatically with:
+MVT uses `pytest` for unit and integration tests. Code style consistency is maintained with `flake8`, `ruff` and `black`. To set up a development environment with these tools installed:
+
+```bash
+python3 -m venv .env
+source .env/bin/activate
+pip install --editable ".[test]"
+```
+
+All tests can be run automatically with:
 
 ```bash
 make check
